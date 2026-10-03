@@ -2,6 +2,8 @@ import express, { Request, Response, NextFunction } from 'express';
 import { createRequire } from 'module';
 import rateLimit from 'express-rate-limit';
 import { env } from './config/env.js';
+import chatRoutes from './routes/chat.js';
+import appointmentsRoutes from './routes/appointments.js';
 
 const require = createRequire(import.meta.url);
 const pinoHttp = require('pino-http');
@@ -26,6 +28,10 @@ app.use(limiter);
 
 // JSON body limit 10kb
 app.use(express.json({ limit: '10kb' }));
+
+// Routes
+app.use('/api/chat', chatRoutes);
+app.use('/api/appointments', appointmentsRoutes);
 
 // Health check endpoint
 app.get('/health', async (_req: Request, res: Response) => {
