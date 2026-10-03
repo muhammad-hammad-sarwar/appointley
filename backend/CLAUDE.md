@@ -42,3 +42,43 @@ The codebase follows a layered architecture:
 - `typecheck`: Run TypeScript type checking
 - `test`: Run Vitest tests
 - `migrate`: Run database migrations
+
+## Recent Additions (Session: First - Migrations, DB_Schemas)
+### Database Migration
+- `/migrations/001_init.sql` - Initial schema with chat_sessions, chat_messages, appointments tables; enables btree_gist and pgcrypto extensions
+
+### Infrastructure
+- `/src/lib/database.ts` - PostgreSQL connection pool and transaction helper
+
+### Data Access Layer (Repositories)
+- `/src/repositories/chatSessionsRepository.ts` - CRUD operations for chat sessions
+- `/src/repositories/chatMessagesRepository.ts` - CRUD operations for chat messages + pending message checking
+- `/src/repositories/appointmentsRepository.ts` - CRUD operations for appointments + conflict detection
+
+### Validation Layer (Zod Schemas)
+- `/src/schemas/index.ts` - Comprehensive validation schemas for:
+  - Chat sessions (creation/update)
+  - Chat messages (creation/update with content length validation)
+  - Appointments (creation/update with time range validation)
+  - Parameter validation (UUIDs)
+  - Response schemas
+
+### Business Logic Layer (Services)
+- `/src/services/chatSessionsService.ts` - Business logic for chat sessions
+- `/src/services/chatMessagesService.ts` - Business logic for chat messages + pending/processing checks
+- `/src/services/appointmentsService.ts` - Business logic for appointments + conflict prevention
+
+### Presentation Layer (Controllers)
+- `/src/controllers/chatSessionsController.ts`:
+  - POST `/api/chat/sessions` → Returns `{ id }`
+  - POST `/api/chat/sessions/:id/messages` → Validates content (1-500 chars, trimmed), inserts with role=user/status=pending, increments meta.user_turns, returns `{ messageId }`, rejects with 409 if pending/processing message exists
+  - GET `/api/chat/sessions/:id/messages` → Returns message history
+- `/src/controllers/appointmentsController.ts`:
+  - GET `/api/appointments/:id` → Returns appointment details
+
+### Routes
+- `/src/routes/chat.ts` - Chat session endpoints
+- `/src/routes/appointments.ts` - Appointment endpoints
+
+### App Integration
+- `/src/app.ts` - Updated to mount chat and appointments routes at `/api/chat` and `/api/appointments`
