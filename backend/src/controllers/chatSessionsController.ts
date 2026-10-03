@@ -1,9 +1,12 @@
-import { Request, Response, NextFunction } from 'express';
-import { ChatSessionsService } from '../services/chatSessionsService';
-import { ChatMessagesService } from '../services/chatMessagesService';
-import { AppointmentsService } from '../services/appointmentsService';
-import { createChatSessionSchema, updateChatSessionSchema } from '../schemas';
-import { AppError } from '../lib/errors';
+import { Request, Response, NextFunction } from "express";
+import { ChatSessionsService } from "../services/chatSessionsService.js";
+import { ChatMessagesService } from "../services/chatMessagesService.js";
+import { AppointmentsService } from "../services/appointmentsService.js";
+import {
+  createChatSessionSchema,
+  updateChatSessionSchema,
+} from "../schemas/index.js";
+import { AppError } from "../../lib/errors.js";
 
 export class ChatSessionsController {
   private chatSessionsService: ChatSessionsService;
@@ -46,33 +49,34 @@ export class ChatSessionsController {
       // Validate session exists
       const session = await this.chatSessionsService.getSessionById(sessionId);
       if (!session) {
-        throw new AppError('Chat session not found', 404);
+        throw new AppError("Chat session not found", 404);
       }
 
       // Check if there's already a pending/processing message (race condition prevention)
-      const hasPending = await this.chatMessagesService.hasPendingMessage(sessionId);
+      const hasPending =
+        await this.chatMessagesService.hasPendingMessage(sessionId);
       if (hasPending) {
-        throw new AppError('Session already has a pending message', 409);
+        throw new AppError("Session already has a pending message", 409);
       }
 
       // Validate request body
       const { content } = req.body;
-      if (!content || typeof content !== 'string') {
-        throw new AppError('Content is required and must be a string', 400);
+      if (!content || typeof content !== "string") {
+        throw new AppError("Content is required and must be a string", 400);
       }
 
       // Trim content and validate length (1-500 chars)
       const trimmedContent = content.trim();
       if (trimmedContent.length < 1 || trimmedContent.length > 500) {
-        throw new AppError('Content must be between 1 and 500 characters', 400);
+        throw new AppError("Content must be between 1 and 500 characters", 400);
       }
 
       // Create message with role=user and status=pending
       const messageData = {
         session_id: sessionId,
-        role: 'user',
+        role: "user",
         content: trimmedContent,
-        status: 'pending'
+        status: "pending",
       };
 
       const message = await this.chatMessagesService.createMessage(messageData);
@@ -80,11 +84,11 @@ export class ChatSessionsController {
       // Increment user_turns in session meta
       const updatedMeta = {
         ...session.meta,
-        user_turns: (session.meta.user_turns || 0) + 1
+        user_turns: (session.meta.user_turns || 0) + 1,
       };
 
       await this.chatSessionsService.updateSession(sessionId, {
-        meta: updatedMeta
+        meta: updatedMeta,
       });
 
       // Return messageId
@@ -105,11 +109,12 @@ export class ChatSessionsController {
       // Validate session exists
       const session = await this.chatSessionsService.getSessionById(sessionId);
       if (!session) {
-        throw new AppError('Chat session not found', 404);
+        throw new AppError("Chat session not found", 404);
       }
 
       // Get messages
-      const messages = await this.chatMessagesService.getMessagesBySessionId(sessionId);
+      const messages =
+        await this.chatMessagesService.getMessagesBySessionId(sessionId);
 
       res.json(messages);
     } catch (error) {

@@ -1,5 +1,5 @@
-import { PoolClient, QueryResult } from 'pg';
-import { withTransaction, query } from '../lib/database';
+import { PoolClient, QueryResult } from "pg";
+import { withTransaction, query } from "../lib/database.js";
 
 export interface Appointment {
   id: string;
@@ -9,7 +9,7 @@ export interface Appointment {
   email: string;
   start_at: Date;
   end_at: Date;
-  status: 'confirmed' | 'cancelled';
+  status: "confirmed" | "cancelled";
   created_at: Date;
 }
 
@@ -20,7 +20,7 @@ export interface CreateAppointmentDTO {
   email: string;
   start_at: Date | string;
   end_at: Date | string;
-  status?: 'confirmed' | 'cancelled';
+  status?: "confirmed" | "cancelled";
 }
 
 export class AppointmentsRepository {
@@ -35,14 +35,14 @@ export class AppointmentsRepository {
       email,
       start_at,
       end_at,
-      status = 'confirmed'
+      status = "confirmed",
     } = data;
 
     const result = await query(
       `INSERT INTO appointments (session_id, user_id, name, email, start_at, end_at, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [session_id, user_id, name, email, start_at, end_at, status]
+      [session_id, user_id, name, email, start_at, end_at, status],
     );
 
     return result.rows[0];
@@ -52,7 +52,9 @@ export class AppointmentsRepository {
    * Find an appointment by ID
    */
   async findById(id: string): Promise<Appointment | null> {
-    const result = await query('SELECT * FROM appointments WHERE id = $1', [id]);
+    const result = await query("SELECT * FROM appointments WHERE id = $1", [
+      id,
+    ]);
     return result.rows[0] || null;
   }
 
@@ -60,7 +62,10 @@ export class AppointmentsRepository {
    * Find appointments by session ID
    */
   async findBySessionId(session_id: string): Promise<Appointment[]> {
-    const result = await query('SELECT * FROM appointments WHERE session_id = $1 ORDER BY created_at DESC', [session_id]);
+    const result = await query(
+      "SELECT * FROM appointments WHERE session_id = $1 ORDER BY created_at DESC",
+      [session_id],
+    );
     return result.rows;
   }
 
@@ -68,14 +73,20 @@ export class AppointmentsRepository {
    * Find appointments by user ID
    */
   async findByUserId(user_id: string): Promise<Appointment[]> {
-    const result = await query('SELECT * FROM appointments WHERE user_id = $1 ORDER BY created_at DESC', [user_id]);
+    const result = await query(
+      "SELECT * FROM appointments WHERE user_id = $1 ORDER BY created_at DESC",
+      [user_id],
+    );
     return result.rows;
   }
 
   /**
    * Update an appointment
    */
-  async update(id: string, updates: Partial<Appointment>): Promise<Appointment | null> {
+  async update(
+    id: string,
+    updates: Partial<Appointment>,
+  ): Promise<Appointment | null> {
     const fields: string[] = [];
     const values: any[] = [];
     let index = 1;
@@ -116,10 +127,10 @@ export class AppointmentsRepository {
     values.push(id); // for WHERE clause
 
     const result = await query(
-      `UPDATE appointments SET ${fields.join(', ')}
+      `UPDATE appointments SET ${fields.join(", ")}
        WHERE id = $${index}
        RETURNING *`,
-      values
+      values,
     );
 
     return result.rows[0] || null;
@@ -129,8 +140,11 @@ export class AppointmentsRepository {
    * Delete an appointment
    */
   async delete(id: string): Promise<boolean> {
-    const result = await query('DELETE FROM appointments WHERE id = $1 RETURNING id', [id]);
-    return result.rowCount > 0;
+    const result = await query(
+      "DELETE FROM appointments WHERE id = $1 RETURNING id",
+      [id],
+    );
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   /**
@@ -140,7 +154,7 @@ export class AppointmentsRepository {
   async checkConflict(
     start_at: Date | string,
     end_at: Date | string,
-    exclude_id?: string
+    exclude_id?: string,
   ): Promise<boolean> {
     let queryText = `
       SELECT id FROM appointments
@@ -150,11 +164,36 @@ export class AppointmentsRepository {
     const values: any[] = [start_at, end_at];
 
     if (exclude_id) {
-      queryText += ' AND id != $3';
+      queryText += " AND id != $3";
       values.push(exclude_id);
     }
 
     const result = await query(queryText, values);
-    return result.rowCount > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  /**
+   * Get confirmed appointment ranges for a given day
+   * @param dayStart - Start of day (inclusive)
+   * @param dayEnd - End of day (inclusive)
+   * @returns Array of confirmed appointment time ranges
+   */
+  async getConfirmedRanges(
+    dayStart: Date | string,
+    dayEnd: Date | string,
+  ): Promise<Array<{ start: Date; end: Date }>> {
+    const result = await query(
+      `SELECT start_at, end_at FROM appointments
+       WHERE status = 'confirmed'
+       AND end_at > $1
+       AND start_at < $2
+       ORDER BY start_at`,
+      [dayStart, dayEnd],
+    );
+
+    return result.rows.map((row) => ({
+      start: row.start_at,
+      end: row.end_at,
+    }));
   }
 }

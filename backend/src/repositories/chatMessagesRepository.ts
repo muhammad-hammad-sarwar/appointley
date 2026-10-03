@@ -1,5 +1,5 @@
 import { PoolClient, QueryResult } from "pg";
-import { withTransaction, query } from "../lib/database";
+import { withTransaction, query } from "../lib/database.js";
 
 export interface ChatMessage {
   id: number;
@@ -126,7 +126,7 @@ export class ChatMessagesRepository {
       "DELETE FROM chat_messages WHERE id = $1 RETURNING id",
       [id],
     );
-    return result.rowCount > 0;
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   /**
